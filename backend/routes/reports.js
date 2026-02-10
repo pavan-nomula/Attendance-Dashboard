@@ -141,15 +141,29 @@ router.get('/overall-stats', authenticateToken, async (req, res) => {
     
     // Pending permissions
     const pendingPermsRes = await db.query("SELECT COUNT(*) FROM permissions WHERE status='pending'");
-    
-    // Pending complaints
-    const pendingComplaintsRes = await db.query("SELECT COUNT(*) FROM complaints WHERE status='pending'");
-    
+
+    // Pending complaints - the complaints table may not exist in some environments
+    // (e.g., before running that migration). Handle missing-relation error gracefully
+    // and return 0 instead of throwing a 500.
+    let pendingComplaints = 0;
+    try {
+      const pendingComplaintsRes = await db.query("SELECT COUNT(*) FROM complaints WHERE status='pending'");
+      pendingComplaints = parseInt(pendingComplaintsRes.rows[0].count, 10);
+    } catch (e) {
+      // Postgres error code 42P01 = undefined_table
+      if (e && e.code === '42P01') {
+        console.warn('complaints table missing; returning 0 pending complaints');
+        pendingComplaints = 0;
+      } else {
+        throw e;
+      }
+    }
+
     res.json({
       totalStudents,
       todayAttendance: todayRes.rows[0],
       pendingPermissions: parseInt(pendingPermsRes.rows[0].count, 10),
-      pendingComplaints: parseInt(pendingComplaintsRes.rows[0].count, 10)
+      pendingComplaints: pendingComplaints
     });
   } catch (err) {
     console.error(err);
