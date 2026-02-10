@@ -29,12 +29,30 @@ BEGIN
   END IF;
 
   -- Ensure all indexes exist
-  CREATE INDEX IF NOT EXISTS idx_attendance_period ON attendance(period_id);
-  CREATE INDEX IF NOT EXISTS idx_permissions_faculty ON permissions(faculty_id);
-  CREATE INDEX IF NOT EXISTS idx_users_uid ON users(uid);
-  CREATE INDEX IF NOT EXISTS idx_timetable_day ON timetable(day_of_week);
-  CREATE INDEX IF NOT EXISTS idx_complaints_student ON complaints(student_id);
-  CREATE INDEX IF NOT EXISTS idx_complaints_status ON complaints(status);
+  -- Create indexes only if the referenced table/column exists
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='attendance' AND column_name='period_id') THEN
+    EXECUTE 'CREATE INDEX IF NOT EXISTS idx_attendance_period ON attendance(period_id)';
+  END IF;
+
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='permissions' AND column_name='faculty_id') THEN
+    EXECUTE 'CREATE INDEX IF NOT EXISTS idx_permissions_faculty ON permissions(faculty_id)';
+  END IF;
+
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='uid') THEN
+    EXECUTE 'CREATE INDEX IF NOT EXISTS idx_users_uid ON users(uid)';
+  END IF;
+
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='timetable' AND column_name='day_of_week') THEN
+    EXECUTE 'CREATE INDEX IF NOT EXISTS idx_timetable_day ON timetable(day_of_week)';
+  END IF;
+
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='complaints' AND column_name='student_id') THEN
+    EXECUTE 'CREATE INDEX IF NOT EXISTS idx_complaints_student ON complaints(student_id)';
+  END IF;
+
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='complaints' AND column_name='status') THEN
+    EXECUTE 'CREATE INDEX IF NOT EXISTS idx_complaints_status ON complaints(status)';
+  END IF;
 END $$;
 
 -- Fix any constraint issues (only if constraints exist)

@@ -141,8 +141,11 @@ router.post('/login', async (req, res) => {
     const token = jwt.sign({ userId: user.id, role: user.role, name: user.name }, process.env.JWT_SECRET || 'your-secret-key-change-in-production');
     res.json({ token, user: { id: user.id, name: user.name, email: user.email, role: user.role, must_change_password: user.must_change_password } });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Server error' });
+    console.error('Login error:', err);
+    // Return the error message to help debugging in development/deployment.
+    // NOTE: Exposing detailed errors to clients is a security risk in production;
+    // revert this change once the underlying issue is fixed.
+    res.status(500).json({ error: err.message || 'Server error' });
   }
 });
 
