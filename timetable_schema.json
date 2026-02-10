@@ -1,0 +1,26 @@
+[
+  {
+    "column_name": "id",
+    "data_type": "integer"
+  },
+  {
+    "column_name": "period_id",
+    "data_type": "integer"
+  },
+  {
+    "column_name": "date",
+    "data_type": "date"
+  },
+  {
+    "column_name": "subject",
+    "data_type": "text"
+  },
+  {
+    "column_name": "faculty_id",
+    "data_type": "integer"
+  },
+  {
+    "column_name": "location",
+    "data_type": "text"
+  }
+]
