@@ -44,4 +44,14 @@ app.use('/api/*', (req, res) => {
 });
 
 const PORT = process.env.PORT || 4000;
-app.listen(PORT, () => console.log(`Server listening on ${PORT}`));
+
+app.get("/", (req, res) => {
+  res.send(`<h2>Backend server is running on port ${PORT}</h2>`);
+});
+
+
+app.listen(PORT, () => {
+  // console.log(`Server running on port ${PORT}`);
+  console.log(`Backend server is running on port ${PORT}`);
+});
+
