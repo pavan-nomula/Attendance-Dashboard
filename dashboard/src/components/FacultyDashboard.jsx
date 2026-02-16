@@ -141,13 +141,13 @@ const FacultyDashboard = () => {
   return (
     <div className="min-h-screen bg-gray-100 p-8">
       {/* Header Section */}
-      <header className="w-full bg-white rounded-xl shadow-md p-4 flex items-center justify-between">
-        <div className="flex items-center space-x-4">
-          <div className="bg-blue-600 rounded-full w-12 h-12 flex items-center justify-center text-white font-bold text-xl">
+      <header className="w-full bg-white rounded-xl shadow-md p-4 flex flex-col md:flex-row items-center md:justify-between gap-4">
+        <div className="flex items-center space-x-4 w-full md:w-auto">
+          <div className="bg-blue-600 rounded-full w-12 h-12 flex-shrink-0 flex items-center justify-center text-white font-bold text-xl">
             VIT
           </div>
           <div>
-            <h1 className="text-xl md:text-2xl font-semibold text-gray-800">
+            <h1 className="text-xl md:text-2xl font-semibold text-gray-800 leading-tight">
               Vishnu Institute of Technology
             </h1>
             <p className="text-sm text-blue-600">
@@ -155,9 +155,14 @@ const FacultyDashboard = () => {
             </p>
           </div>
         </div>
-        <div className="flex items-center space-x-4">
-          <span className="text-gray-600">Logged in as: <span className="font-medium text-blue-600">{user?.name || 'Faculty'}</span></span>
-          <button onClick={handleLogout} className="bg-blue-600 text-white font-medium py-2 px-6 rounded-lg hover:bg-blue-700 transition-colors duration-200">
+        <div className="flex flex-col sm:flex-row items-center space-x-0 sm:space-x-4 gap-3 w-full md:w-auto">
+          <span className="text-gray-600 text-sm md:text-base text-center md:text-left">
+            Logged in as: <span className="font-medium text-blue-600">{user?.name || 'Faculty'}</span>
+          </span>
+          <button
+            onClick={handleLogout}
+            className="w-full sm:w-auto bg-blue-600 text-white font-medium py-2 px-6 rounded-lg hover:bg-blue-700 transition-colors duration-200 text-sm"
+          >
             Logout
           </button>
         </div>
@@ -232,17 +237,17 @@ const FacultyDashboard = () => {
             Export CSV
           </button>
         </div>
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <p className="text-gray-600">Subject: <span className="font-medium text-gray-800">{currentClass.subject || "No Class Active"}</span></p>
-            <p className="text-gray-600">Time: <span className="font-medium text-gray-800">{currentClass.time || "N/A"}</span></p>
-            <p className="text-gray-600">Location: <span className="font-medium text-gray-800">{currentClass.location || "N/A"}</span></p>
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-4">
+          <div className="space-y-1">
+            <p className="text-gray-600 text-sm">Subject: <span className="font-medium text-gray-800">{currentClass.subject || "No Class Active"}</span></p>
+            <p className="text-gray-600 text-sm">Time: <span className="font-medium text-gray-800">{currentClass.time || "N/A"}</span></p>
+            <p className="text-gray-600 text-sm">Location: <span className="font-medium text-gray-800">{currentClass.location || "N/A"}</span></p>
           </div>
           <button
             onClick={() => {
               alert('Attendance finalized for this period!');
             }}
-            className="bg-green-500 text-white px-6 py-2 rounded-lg hover:bg-green-600"
+            className="w-full sm:w-auto bg-green-500 text-white px-6 py-2 rounded-lg hover:bg-green-600 font-medium transition-colors text-sm"
           >
             Finalize Attendance
           </button>
@@ -342,7 +347,7 @@ const FacultyDashboard = () => {
             <tbody>
               {permissionRequests.length > 0 ? (
                 permissionRequests.map((request) => (
-                  <tr key={request.id} className="border-b">
+                  <tr key={request._id} className="border-b">
                     <td className="py-2 px-4 text-gray-800">{request.student_name || 'N/A'}</td>
                     <td className="py-2 px-4 text-gray-800">{request.reason || 'N/A'}</td>
                     <td className="py-2 px-4 text-gray-800">
@@ -356,13 +361,13 @@ const FacultyDashboard = () => {
                       {request.status === 'pending' && (
                         <>
                           <button
-                            onClick={() => handleApprovePermission(request.id, 'approved')}
+                            onClick={() => handleApprovePermission(request._id, 'approved')}
                             className="bg-green-600 text-white px-3 py-1 rounded-lg hover:bg-green-700 mr-2"
                           >
                             Approve
                           </button>
                           <button
-                            onClick={() => handleApprovePermission(request.id, 'rejected')}
+                            onClick={() => handleApprovePermission(request._id, 'rejected')}
                             className="bg-red-600 text-white px-3 py-1 rounded-lg hover:bg-red-700"
                           >
                             Reject

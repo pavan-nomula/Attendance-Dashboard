@@ -1,360 +1,132 @@
-// API service for connecting to backend
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
+import axios from 'axios';
 
-// const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://smart-attendance-backend-beta.vercel.app/api';
+const api = axios.create({
+  baseURL: `http://${window.location.hostname}:4001/api`,
+});
 
-
-
-// https://smart-attendance-backend-beta.vercel.app/
-
-// Get token from localStorage
-const getToken = () => {
-  return localStorage.getItem('token');
-};
-
-// Set token in localStorage
-export const setToken = (token) => {
-  localStorage.setItem('token', token);
-};
-
-// Remove token from localStorage
-export const removeToken = () => {
-  localStorage.removeItem('token');
-};
-
-// Get stored user info
-export const getStoredUser = () => {
-  const userStr = localStorage.getItem('user');
-  return userStr ? JSON.parse(userStr) : null;
-};
-
-// Set user info in localStorage
-export const setStoredUser = (user) => {
-  localStorage.setItem('user', JSON.stringify(user));
-};
-
-// Remove user info from localStorage
-export const removeStoredUser = () => {
-  localStorage.removeItem('user');
-};
-
-// Generic API request function
-const apiRequest = async (endpoint, options = {}) => {
-  const token = getToken();
-  const headers = {
-    'Content-Type': 'application/json',
-    ...options.headers,
-  };
-
+// Add token to requests
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('token');
   if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
+    config.headers.Authorization = `Bearer ${token}`;
   }
+  return config;
+});
 
-  const config = {
-    ...options,
-    headers,
-  };
+// Add response interceptor to return data directly
+api.interceptors.response.use(
+  (response) => response.data,
+  (error) => {
+    // Extract error message for easier usage in components
+    const errorData = error.response?.data;
+    const message = errorData?.error || errorData?.message || error.message || 'An unexpected error occurred';
 
-  try {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
+    // Create a new error object with the extracted message
+    const customError = new Error(message);
+    customError.status = error.response?.status;
+    customError.data = errorData;
 
-    // Check if response is JSON
-    const contentType = response.headers.get('content-type');
-    if (!contentType || !contentType.includes('application/json')) {
-      const text = await response.text();
-      console.error('Non-JSON response:', text.substring(0, 200));
-      throw new Error('Server returned an error. Please check backend server logs.');
-    }
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      throw new Error(data.error || 'Request failed');
-    }
-
-    return data;
-  } catch (error) {
-    console.error('API Error:', error);
-    if (error.message.includes('JSON')) {
-      throw new Error('Server error - backend may not be running or there is a server error. Check backend terminal.');
-    }
-    throw error;
+    return Promise.reject(customError);
   }
-};
+);
 
-// Auth API
 export const authAPI = {
-  signup: async (name, email, password, role, inviteCode, activationCode) => {
-    return apiRequest('/auth/signup', {
-      method: 'POST',
-      body: JSON.stringify({ name, email, password, role, inviteCode, activationCode }),
-    });
-  },
-
-  login: async (email, password) => {
-    return apiRequest('/auth/login', {
-      method: 'POST',
-      body: JSON.stringify({ email, password }),
-    });
-  },
-
-  getMe: async () => {
-    return apiRequest('/auth/me', {
-      method: 'GET',
-    });
-  },
+  login: (email, password) => api.post('/auth/login', { email, password }),
+  signup: (name, email, password, role, inviteCode, activationCode) =>
+    api.post('/auth/signup', { name, email, password, role, inviteCode, activationCode }),
+  getMe: () => api.get('/auth/me'),
 };
 
-// Attendance API
-export const attendanceAPI = {
-  mark: async (uid, studentId, period_id, timestamp) => {
-    return apiRequest('/attendance/mark', {
-      method: 'POST',
-      body: JSON.stringify({ uid, studentId, period_id, timestamp }),
-    });
-  },
-
-  markManual: async (studentId, period_id, status, date) => {
-    return apiRequest('/attendance/manual', {
-      method: 'POST',
-      body: JSON.stringify({ studentId, period_id, status, date }),
-    });
-  },
-
-  getToday: async (period_id) => {
-    const query = period_id ? `?period_id=${period_id}` : '';
-    return apiRequest(`/attendance/today${query}`, {
-      method: 'GET',
-    });
-  },
-};
-
-// Permissions API
-export const permissionsAPI = {
-  create: async (reason, start_date, end_date, faculty_id) => {
-    return apiRequest('/permissions', {
-      method: 'POST',
-      body: JSON.stringify({ reason, start_date, end_date, faculty_id }),
-    });
-  },
-
-  getMine: async () => {
-    return apiRequest('/permissions/mine', {
-      method: 'GET',
-    });
-  },
-
-  getAll: async () => {
-    return apiRequest('/permissions', {
-      method: 'GET',
-    });
-  },
-
-  update: async (id, status) => {
-    return apiRequest(`/permissions/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify({ status }),
-    });
-  },
-};
-
-// Reports API
-export const reportsAPI = {
-  getAttendancePercent: async (studentId, from, to) => {
-    const params = new URLSearchParams();
-    if (studentId) params.append('studentId', studentId);
-    if (from) params.append('from', from);
-    if (to) params.append('to', to);
-    const query = params.toString() ? `?${params.toString()}` : '';
-    return apiRequest(`/reports/attendance-percent${query}`, {
-      method: 'GET',
-    });
-  },
-
-  getAttendanceHistory: async (studentId, from, to) => {
-    const params = new URLSearchParams();
-    if (studentId) params.append('studentId', studentId);
-    if (from) params.append('from', from);
-    if (to) params.append('to', to);
-    const query = params.toString() ? `?${params.toString()}` : '';
-    return apiRequest(`/reports/attendance-history${query}`, {
-      method: 'GET',
-    });
-  },
-
-  getSubjectWise: async (studentId, from, to) => {
-    const params = new URLSearchParams();
-    if (studentId) params.append('studentId', studentId);
-    if (from) params.append('from', from);
-    if (to) params.append('to', to);
-    const query = params.toString() ? `?${params.toString()}` : '';
-    return apiRequest(`/reports/subject-wise${query}`, {
-      method: 'GET',
-    });
-  },
-
-  getFacultyStats: async (from, to) => {
-    const params = new URLSearchParams();
-    if (from) params.append('from', from);
-    if (to) params.append('to', to);
-    const query = params.toString() ? `?${params.toString()}` : '';
-    return apiRequest(`/reports/faculty-stats${query}`, {
-      method: 'GET',
-    });
-  },
-
-  getOverallStats: async () => {
-    return apiRequest('/reports/overall-stats', {
-      method: 'GET',
-    });
-  },
-};
-
-// Users API
 export const usersAPI = {
-  getMe: async () => {
-    return apiRequest('/users/me', {
-      method: 'GET',
-    });
-  },
-
-  getAll: async (filters = {}) => {
-    const params = new URLSearchParams();
-    if (filters.role) params.append('role', filters.role);
-    if (filters.department) params.append('department', filters.department);
-    if (filters.class_name) params.append('class_name', filters.class_name);
-    if (filters.search) params.append('search', filters.search);
-
-    const query = params.toString() ? `?${params.toString()}` : '';
-    return apiRequest(`/users${query}`, {
-      method: 'GET',
-    });
-  },
-
-  create: async (name, email, role, uid, password, department, class_name) => {
-    return apiRequest('/users', {
-      method: 'POST',
-      body: JSON.stringify({ name, email, role, uid, password, department, class_name }),
-    });
-  },
-
-  update: async (userId, name, email, role, uid, department, class_name) => {
-    return apiRequest(`/users/${userId}`, {
-      method: 'PUT',
-      body: JSON.stringify({ name, email, role, uid, department, class_name }),
-    });
-  },
-
-  delete: async (userId) => {
-    return apiRequest(`/users/${userId}`, {
-      method: 'DELETE',
-    });
-  },
-
-  mapUID: async (userId, uid) => {
-    return apiRequest(`/users/map-uid/${userId}`, {
-      method: 'PUT',
-      body: JSON.stringify({ uid }),
-    });
-  },
-
-  changePassword: async (userId, password) => {
-    return apiRequest(`/users/reset-password/${userId}`, {
-      method: 'PUT',
-      body: JSON.stringify({ password }),
-    });
-  },
-
-  toggleStatus: async (userId) => {
-    return apiRequest(`/users/toggle-status/${userId}`, {
-      method: 'POST',
-    });
-  },
-
-  promote: async (userId) => {
-    return apiRequest(`/users/promote/${userId}`, {
-      method: 'POST',
-    });
-  },
-
-  delete: async (userId) => {
-    return apiRequest(`/users/${userId}`, {
-      method: 'DELETE',
-    });
-  },
-
-  demote: async (userId) => {
-    return apiRequest(`/users/demote/${userId}`, {
-      method: 'POST',
-    });
-  },
+  getMe: () => api.get('/users/me'),
+  getAll: (params) => api.get('/users', { params }),
+  create: (name, email, role, uid, id_number, password) =>
+    api.post('/users', { name, email, role, uid, id_number, password }),
+  update: (id, name, email, role, uid, id_number) =>
+    api.put(`/users/${id}`, { name, email, role, uid, id_number }),
+  delete: (id) => api.delete(`/users/${id}`),
+  toggleStatus: (id) => api.post(`/users/toggle-status/${id}`),
+  promote: (id) => api.post(`/users/promote/${id}`),
+  demote: (id) => api.post(`/users/demote/${id}`), // Placeholder if needed
+  changePassword: (id, newPassword) => api.post(`/users/change-password/${id}`, { newPassword }),
+  mapUID: (id, uid) => api.post(`/users/map-uid/${id}`, { uid }),
 };
 
-// Timetable API
-// Timetable API
+export const attendanceAPI = {
+  getToday: (periodId) => api.get('/attendance/today', { params: { period_id: periodId } }),
+  getHistory: (studentId) => api.get(`/attendance/history/${studentId}`),
+  markManual: (studentId, periodId, status) => api.post('/attendance/manual', { student_id: studentId, period_id: periodId, status }),
+  getCSVData: () => api.get('/attendance/csv'),
+  getLiveStats: () => api.get('/attendance/live'),
+};
+
 export const timetableAPI = {
-  create: async (day_of_week, subject, start_time, end_time, faculty_email, faculty_name) => {
-    return apiRequest('/timetable', {
-      method: 'POST',
-      body: JSON.stringify({ day_of_week, subject, start_time, end_time, faculty_email, faculty_name }),
-    });
-  },
-
-  getAll: async (day) => {
-    const query = day ? `?day=${day}` : '';
-    return apiRequest(`/timetable${query}`, {
-      method: 'GET',
-    });
-  },
-
-  getMySchedule: async () => {
-    return apiRequest('/timetable/my-schedule', {
-      method: 'GET',
-    });
-  },
-
-  delete: async (id) => {
-    return apiRequest(`/timetable/${id}`, {
-      method: 'DELETE',
-    });
-  },
+  getAll: (day) => api.get('/timetable', { params: { day } }),
+  getMySchedule: () => api.get('/timetable/my-schedule'),
+  create: (day, subject, startTime, endTime, facultyEmail, facultyName, department, className) =>
+    api.post('/timetable', {
+      day_of_week: day,
+      subject,
+      start_time: startTime,
+      end_time: endTime,
+      faculty_email: facultyEmail,
+      faculty_name: facultyName,
+      department,
+      class_name: className
+    }),
+  delete: (id) => api.delete(`/timetable/${id}`),
 };
 
-// Complaints API
+export const permissionsAPI = {
+  getAll: () => api.get('/permissions'),
+  getMine: () => api.get('/permissions/mine'),
+  create: (reason, startDate, endDate) => api.post('/permissions', { reason, start_date: startDate, end_date: endDate }),
+  update: (id, status) => api.put(`/permissions/${id}`, { status }),
+};
+
 export const complaintsAPI = {
-  create: async (message) => {
-    return apiRequest('/complaints', {
-      method: 'POST',
-      body: JSON.stringify({ message }),
-    });
-  },
-
-  getMine: async () => {
-    return apiRequest('/complaints/mine', {
-      method: 'GET',
-    });
-  },
-
-  getAll: async () => {
-    return apiRequest('/complaints', {
-      method: 'GET',
-    });
-  },
-
-  update: async (id, status) => {
-    return apiRequest(`/complaints/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify({ status }),
-    });
-  },
+  getAll: () => api.get('/complaints'),
+  getMine: () => api.get('/complaints/mine'),
+  create: (message) => api.post('/complaints', { message }),
+  update: (id, status) => api.put(`/complaints/${id}`, { status }),
 };
 
-export default {
-  auth: authAPI,
-  attendance: attendanceAPI,
-  permissions: permissionsAPI,
-  reports: reportsAPI,
-  users: usersAPI,
-  timetable: timetableAPI,
-  complaints: complaintsAPI,
+export const reportsAPI = {
+  getOverallStats: () => api.get('/reports/overall-stats'),
+  getFacultyStats: () => api.get('/reports/faculty-stats'),
+  getAttendancePercent: (studentId) => api.get(`/reports/attendance-percent/${studentId}`),
+  getAttendanceHistory: (studentId) => api.get(`/reports/attendance-history/${studentId}`),
+  getSubjectWise: (studentId) => api.get(`/reports/subject-wise/${studentId}`),
 };
+
+export const hardwareAPI = {
+  uploadCSV: (file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return api.post('/hardware/upload-csv', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+  }
+};
+
+// Export getAttendance for Dashboard component
+export const getAttendance = async () => {
+  const data = await attendanceAPI.getCSVData();
+  if (!data || !Array.isArray(data)) return [];
+
+  // Transform CSV data to match AttendanceTable expected format
+  return data.map((record, index) => ({
+    studentId: record.regNo || 'N/A',
+    studentName: record.name || 'Unknown',
+    timestamp: record.time || new Date().toISOString(),
+    status: record.status || 'N/A'
+  }));
+};
+
+export const setToken = (token) => localStorage.setItem('token', token);
+export const setStoredUser = (user) => localStorage.setItem('user', JSON.stringify(user));
+export const getStoredUser = () => JSON.parse(localStorage.getItem('user'));
+export const removeToken = () => localStorage.removeItem('token');
+export const removeStoredUser = () => localStorage.removeItem('user');
+
+export default api;

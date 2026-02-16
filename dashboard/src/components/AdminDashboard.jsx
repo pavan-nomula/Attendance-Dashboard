@@ -79,7 +79,7 @@ const AdminDashboard = () => {
         e.preventDefault();
         try {
             await usersAPI.update(
-                editingUser.id,
+                editingUser._id,
                 editingUser.name,
                 editingUser.email,
                 editingUser.role,
@@ -156,8 +156,8 @@ const AdminDashboard = () => {
     const exportToCSV = () => {
         const headers = ['ID', 'Name', 'Email', 'Role', 'Department', 'Class', 'Status', 'Created At'];
         const rows = allUsers.map(u => [
-            u.id, u.name, u.email, u.role, u.department || 'N/A', u.class_name || 'N/A',
-            u.is_active ? 'Active' : 'Inactive', new Date(u.created_at).toLocaleDateString()
+            u._id, u.name, u.email, u.role, u.department || 'N/A', u.class_name || 'N/A',
+            u.is_active ? 'Active' : 'Inactive', new Date(u.createdAt).toLocaleDateString()
         ]);
 
         const csvContent = [headers, ...rows].map(r => r.join(',')).join('\n');
@@ -182,37 +182,37 @@ const AdminDashboard = () => {
     return (
         <div className="min-h-screen p-4 md:p-8 bg-slate-900 text-white font-sans max-w-[1600px] mx-auto">
             {/* HEADER */}
-            <header className="bg-slate-800 rounded-2xl shadow-2xl p-6 border border-slate-700/50 flex flex-col md:flex-row md:justify-between md:items-center gap-6 sticky top-0 z-40 backdrop-blur-md">
-                <div className="flex items-center gap-4">
-                    <div className="h-14 w-14 bg-gradient-to-tr from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center text-2xl font-black shadow-lg shadow-blue-500/20">
+            <header className="bg-slate-800 rounded-2xl shadow-2xl p-4 md:p-6 border border-slate-700/50 flex flex-col lg:flex-row lg:justify-between lg:items-center gap-6 sticky top-0 z-40 backdrop-blur-md">
+                <div className="flex items-center gap-4 w-full lg:w-auto">
+                    <div className="h-12 w-12 md:h-14 md:w-14 bg-gradient-to-tr from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center text-xl md:text-2xl font-black shadow-lg shadow-blue-500/20 flex-shrink-0">
                         A
                     </div>
                     <div>
-                        <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight bg-gradient-to-r from-blue-400 via-indigo-400 to-emerald-400 bg-clip-text text-transparent">
+                        <h1 className="text-xl md:text-2xl lg:text-3xl font-extrabold tracking-tight bg-gradient-to-r from-blue-400 via-indigo-400 to-emerald-400 bg-clip-text text-transparent leading-tight">
                             System Control Center
                         </h1>
-                        <p className="text-slate-400 text-sm font-medium">
+                        <p className="text-slate-400 text-xs md:text-sm font-medium">
                             Administrator: <span className="text-indigo-400">{user?.name}</span>
                         </p>
                     </div>
                 </div>
 
-                <div className="flex flex-wrap gap-3">
+                <div className="flex flex-wrap gap-2 md:gap-3 w-full lg:w-auto">
                     <button
                         onClick={() => setShowCreateModal(true)}
-                        className="bg-indigo-600 hover:bg-indigo-500 px-6 py-2.5 rounded-xl transition-all font-bold flex items-center gap-2 shadow-lg shadow-indigo-600/20"
+                        className="flex-1 lg:flex-none justify-center bg-indigo-600 hover:bg-indigo-500 px-4 md:px-6 py-2.5 rounded-xl transition-all font-bold flex items-center gap-2 shadow-lg shadow-indigo-600/20 text-sm"
                     >
-                        <span>+</span> Create Account
+                        <span>+</span> Account
                     </button>
                     <button
                         onClick={exportToCSV}
-                        className="bg-emerald-600 hover:bg-emerald-500 px-6 py-2.5 rounded-xl transition-all font-bold flex items-center gap-2 shadow-lg shadow-emerald-600/20"
+                        className="flex-1 lg:flex-none justify-center bg-emerald-600 hover:bg-emerald-500 px-4 md:px-6 py-2.5 rounded-xl transition-all font-bold flex items-center gap-2 shadow-lg shadow-emerald-600/20 text-sm"
                     >
-                        📊 Export Data
+                        📊 Export
                     </button>
                     <button
                         onClick={handleLogout}
-                        className="bg-slate-700 hover:bg-rose-600 px-6 py-2.5 rounded-xl transition-all font-bold"
+                        className="flex-1 lg:flex-none justify-center bg-slate-700 hover:bg-rose-600 px-4 md:px-6 py-2.5 rounded-xl transition-all font-bold text-sm"
                     >
                         Logout
                     </button>
@@ -229,36 +229,38 @@ const AdminDashboard = () => {
 
             {/* USER MANAGEMENT PANEL */}
             <section className="mt-10 bg-slate-800/50 backdrop-blur-xl rounded-3xl border border-slate-700/50 overflow-hidden shadow-2xl">
-                <div className="p-8 border-b border-slate-700/50 flex flex-col lg:flex-row justify-between items-center gap-6">
-                    <h2 className="text-xl font-bold flex items-center gap-3">
-                        <span className="h-2 w-2 bg-blue-500 rounded-full animate-pulse"></span>
-                        User Access Management
+                <div className="p-4 md:p-8 border-b border-slate-700/50 flex flex-col lg:flex-row justify-between items-start md:items-center gap-6">
+                    <h2 className="text-lg md:text-xl font-bold flex items-center gap-3">
+                        <span className="h-2 w-2 bg-blue-500 rounded-full animate-pulse flex-shrink-0"></span>
+                        User Management
                     </h2>
 
-                    <form onSubmit={handleSearch} className="flex flex-wrap gap-4 w-full lg:w-auto">
+                    <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-4 w-full lg:w-auto">
                         <div className="relative flex-1 lg:w-80">
                             <input
                                 type="text"
-                                placeholder="Search by name or email..."
+                                placeholder="Search name or email..."
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-full bg-slate-900/50 border border-slate-700 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-blue-500 outline-none transition-all placeholder:text-slate-500"
+                                className="w-full bg-slate-900/50 border border-slate-700 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-blue-500 outline-none transition-all placeholder:text-slate-500 text-sm"
                             />
                         </div>
-                        <select
-                            value={roleFilter}
-                            onChange={(e) => setRoleFilter(e.target.value)}
-                            className="bg-slate-900/50 border border-slate-700 rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-blue-500"
-                        >
-                            <option value="">All Roles</option>
-                            <option value="student">Student</option>
-                            <option value="faculty">Faculty</option>
-                            <option value="incharge">Incharge</option>
-                            <option value="admin">Admin</option>
-                        </select>
-                        <button type="submit" className="bg-slate-700 hover:bg-slate-600 px-6 py-2.5 rounded-xl font-bold transition-all">
-                            Filter
-                        </button>
+                        <div className="flex gap-2 w-full sm:w-auto">
+                            <select
+                                value={roleFilter}
+                                onChange={(e) => setRoleFilter(e.target.value)}
+                                className="flex-1 sm:flex-none bg-slate-900/50 border border-slate-700 rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                            >
+                                <option value="">All Roles</option>
+                                <option value="student">Student</option>
+                                <option value="faculty">Faculty</option>
+                                <option value="incharge">Incharge</option>
+                                <option value="admin">Admin</option>
+                            </select>
+                            <button type="submit" className="bg-slate-700 hover:bg-slate-600 px-6 py-2.5 rounded-xl font-bold transition-all text-sm">
+                                Filter
+                            </button>
+                        </div>
                     </form>
                 </div>
 
@@ -279,7 +281,7 @@ const AdminDashboard = () => {
                                 </tr>
                             ) : (
                                 allUsers.map(u => (
-                                    <tr key={u.id} className="group hover:bg-slate-700/20 transition-all">
+                                    <tr key={u._id} className="group hover:bg-slate-700/20 transition-all">
                                         <td className="py-6 px-8">
                                             <div className="flex items-center gap-4">
                                                 <div className="h-10 w-10 rounded-full bg-slate-700 flex items-center justify-center text-sm font-bold border border-slate-600 group-hover:border-blue-500/50 group-hover:text-blue-400 transition-all shadow-inner">
@@ -306,7 +308,7 @@ const AdminDashboard = () => {
                                         </td>
                                         <td className="py-6 px-8">
                                             <button
-                                                onClick={() => toggleUserStatus(u.id)}
+                                                onClick={() => toggleUserStatus(u._id)}
                                                 className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold transition-all ${u.is_active
                                                     ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-rose-500/10 hover:text-rose-400 hover:border-rose-500/20'
                                                     : 'bg-rose-500/10 text-rose-400 border border-rose-500/20 hover:bg-emerald-500/10 hover:text-emerald-400 hover:border-emerald-500/20'
@@ -321,7 +323,7 @@ const AdminDashboard = () => {
                                             <div className="flex justify-center gap-2">
                                                 {u.role === 'faculty' && (
                                                     <button
-                                                        onClick={() => promoteToIncharge(u.id)}
+                                                        onClick={() => promoteToIncharge(u._id)}
                                                         className="p-2 bg-amber-500/10 text-amber-500 hover:bg-amber-500 hover:text-black rounded-lg transition-all text-xs font-black uppercase tracking-tight border border-amber-500/20"
                                                         title="Promote to Incharge"
                                                     >
@@ -330,7 +332,7 @@ const AdminDashboard = () => {
                                                 )}
                                                 {u.role === 'incharge' && (
                                                     <button
-                                                        onClick={() => handleDemoteUser(u.id)}
+                                                        onClick={() => handleDemoteUser(u._id)}
                                                         className="p-2 bg-orange-500/10 text-orange-500 hover:bg-orange-500 hover:text-white rounded-lg transition-all text-xs font-black uppercase tracking-tight border border-orange-500/20"
                                                         title="Demote to Faculty"
                                                     >
@@ -338,7 +340,7 @@ const AdminDashboard = () => {
                                                     </button>
                                                 )}
                                                 <button
-                                                    onClick={() => resetUserPassword(u.id)}
+                                                    onClick={() => resetUserPassword(u._id)}
                                                     className="p-2 bg-blue-500/10 text-blue-400 hover:bg-blue-500 hover:text-white rounded-lg transition-all text-xs font-black uppercase tracking-tight border border-blue-500/20"
                                                     title="Reset to default password"
                                                 >
@@ -354,7 +356,7 @@ const AdminDashboard = () => {
                                                     Edit
                                                 </button>
                                                 <button
-                                                    onClick={() => handleDeleteUser(u.id)}
+                                                    onClick={() => handleDeleteUser(u._id)}
                                                     className="p-2 bg-rose-500/10 text-rose-400 hover:bg-rose-600 hover:text-white rounded-lg transition-all text-xs font-black uppercase tracking-tight border border-rose-500/20"
                                                     title="Permanently Delete"
                                                 >

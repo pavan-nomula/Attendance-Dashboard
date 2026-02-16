@@ -61,7 +61,7 @@ const StudentDashboard = () => {
       // Load permission requests
       const permissionsData = await permissionsAPI.getMine();
       const formattedPermissions = permissionsData.rows.map(item => ({
-        id: item.id,
+        id: item._id,
         reason: item.reason || 'N/A',
         date: `${item.start_date ? new Date(item.start_date).toLocaleDateString() : 'N/A'}${item.end_date ? ' - ' + new Date(item.end_date).toLocaleDateString() : ''}`,
         status: item.status.charAt(0).toUpperCase() + item.status.slice(1)
@@ -71,10 +71,10 @@ const StudentDashboard = () => {
       // Load complaints
       const complaintsData = await complaintsAPI.getMine();
       const formattedComplaints = complaintsData.rows.map(item => ({
-        id: item.id,
+        id: item._id,
         text: item.message,
         status: item.status.charAt(0).toUpperCase() + item.status.slice(1),
-        date: new Date(item.created_at).toLocaleDateString()
+        date: new Date(item.createdAt).toLocaleDateString()
       }));
       setSubmittedComplaints(formattedComplaints);
 
@@ -124,10 +124,10 @@ const StudentDashboard = () => {
       // Reload complaints
       const complaintsData = await complaintsAPI.getMine();
       const formattedComplaints = complaintsData.rows.map(item => ({
-        id: item.id,
+        id: item._id,
         text: item.message,
         status: item.status.charAt(0).toUpperCase() + item.status.slice(1),
-        date: new Date(item.created_at).toLocaleDateString()
+        date: new Date(item.createdAt).toLocaleDateString()
       }));
       setSubmittedComplaints(formattedComplaints);
     } catch (err) {
@@ -159,7 +159,7 @@ const StudentDashboard = () => {
       // Reload permissions
       const permissionsData = await permissionsAPI.getMine();
       const formattedPermissions = permissionsData.rows.map(item => ({
-        id: item.id,
+        id: item._id,
         reason: item.reason || 'N/A',
         date: `${item.start_date ? new Date(item.start_date).toLocaleDateString() : 'N/A'}${item.end_date ? ' - ' + new Date(item.end_date).toLocaleDateString() : ''}`,
         status: item.status.charAt(0).toUpperCase() + item.status.slice(1)
@@ -203,13 +203,13 @@ const StudentDashboard = () => {
   return (
     <div className="min-h-screen bg-gray-100 p-8">
       {/* Header Section */}
-      <header className="w-full bg-white rounded-xl shadow-md p-4 flex items-center justify-between">
-        <div className="flex items-center space-x-4">
-          <div className="bg-blue-600 rounded-full w-12 h-12 flex items-center justify-center text-white font-bold text-xl">
+      <header className="w-full bg-white rounded-xl shadow-md p-4 flex flex-col md:flex-row items-center md:justify-between gap-4">
+        <div className="flex items-center space-x-4 w-full md:w-auto">
+          <div className="bg-blue-600 rounded-full w-12 h-12 flex-shrink-0 flex items-center justify-center text-white font-bold text-xl">
             VIT
           </div>
           <div>
-            <h1 className="text-xl md:text-2xl font-semibold text-gray-800">
+            <h1 className="text-xl md:text-2xl font-semibold text-gray-800 leading-tight">
               Vishnu Institute of Technology
             </h1>
             <p className="text-sm text-blue-600">
@@ -217,19 +217,24 @@ const StudentDashboard = () => {
             </p>
           </div>
         </div>
-        <div className="flex items-center space-x-4">
-          <span className="text-gray-600">
+        <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
+          <span className="text-gray-600 text-sm md:text-base text-center md:text-left">
             Logged in as: <span className="font-medium text-blue-600">{user?.name || 'Student'}</span>
           </span>
-          <button
-            onClick={() => setShowPasswordModal(true)}
-            className="bg-green-600 text-white font-medium py-2 px-4 rounded-lg hover:bg-green-700 transition-colors duration-200"
-          >
-            Change Password
-          </button>
-          <button onClick={handleLogout} className="bg-blue-600 text-white font-medium py-2 px-6 rounded-lg hover:bg-blue-700 transition-colors duration-200">
-            Logout
-          </button>
+          <div className="flex gap-2 w-full sm:w-auto">
+            <button
+              onClick={() => setShowPasswordModal(true)}
+              className="flex-1 sm:flex-none bg-green-600 text-white font-medium py-2 px-4 rounded-lg hover:bg-green-700 transition-colors duration-200 text-sm"
+            >
+              Change Password
+            </button>
+            <button
+              onClick={handleLogout}
+              className="flex-1 sm:flex-none bg-blue-600 text-white font-medium py-2 px-6 rounded-lg hover:bg-blue-700 transition-colors duration-200 text-sm"
+            >
+              Logout
+            </button>
+          </div>
         </div>
       </header>
 
@@ -338,21 +343,21 @@ const StudentDashboard = () => {
 
       {/* Detailed Attendance Log */}
       <div className="mt-8 bg-white rounded-xl shadow-md p-6">
-        <div className="flex justify-between items-center mb-4">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4">
           <h2 className="text-2xl font-semibold text-gray-800">Your Attendance Log</h2>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2 w-full md:w-auto">
             <input
               type="date"
               value={dateRange.from}
               onChange={(e) => setDateRange({ ...dateRange, from: e.target.value })}
-              className="border rounded-lg px-3 py-1 text-sm"
+              className="flex-1 md:flex-none border rounded-lg px-3 py-1 text-sm bg-white"
               placeholder="From"
             />
             <input
               type="date"
               value={dateRange.to}
               onChange={(e) => setDateRange({ ...dateRange, to: e.target.value })}
-              className="border rounded-lg px-3 py-1 text-sm"
+              className="flex-1 md:flex-none border rounded-lg px-3 py-1 text-sm bg-white"
               placeholder="To"
             />
             <button
@@ -361,7 +366,7 @@ const StudentDashboard = () => {
                   await loadDashboardData(user.id);
                 }
               }}
-              className="bg-blue-600 text-white px-4 py-1 rounded-lg text-sm hover:bg-blue-700"
+              className="w-full sm:w-auto bg-blue-600 text-white px-4 py-1 rounded-lg text-sm hover:bg-blue-700"
             >
               Filter
             </button>
@@ -379,7 +384,7 @@ const StudentDashboard = () => {
                 a.download = `attendance-report-${new Date().toISOString().slice(0, 10)}.csv`;
                 a.click();
               }}
-              className="bg-green-600 text-white px-4 py-1 rounded-lg text-sm hover:bg-green-700"
+              className="w-full sm:w-auto bg-green-600 text-white px-4 py-1 rounded-lg text-sm hover:bg-green-700"
             >
               Export CSV
             </button>

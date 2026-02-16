@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getStoredUser, removeToken, removeStoredUser } from '../services/api';
-import { attendanceAPI, usersAPI, permissionsAPI, complaintsAPI, reportsAPI, timetableAPI } from '../services/api';
+import { attendanceAPI, usersAPI, permissionsAPI, complaintsAPI, reportsAPI, timetableAPI, hardwareAPI } from '../services/api';
 import LoadingScreen from './LoadingScreen';
 
 
@@ -29,6 +29,7 @@ const InchargeDashboard = () => {
   const [approvedLeaves, setApprovedLeaves] = useState([]);
   const [rejectedLeaves, setRejectedLeaves] = useState([]);
   const [allUsers, setAllUsers] = useState([]);
+  const [liveStats, setLiveStats] = useState([]);
   const [overallStats, setOverallStats] = useState(null);
   const [showUserModal, setShowUserModal] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
@@ -36,6 +37,7 @@ const InchargeDashboard = () => {
   const [newUserEmail, setNewUserEmail] = useState('');
   const [newUserRole, setNewUserRole] = useState('student');
   const [newUserUID, setNewUserUID] = useState('');
+  const [newUserRegNo, setNewUserRegNo] = useState('');
   const [newUserPassword, setNewUserPassword] = useState('');
   const [userFilter, setUserFilter] = useState('');
 
@@ -77,6 +79,18 @@ const InchargeDashboard = () => {
     }
     setUser(storedUser);
     loadDashboardData();
+
+    // Poll for live stats every 5 seconds
+    const interval = setInterval(async () => {
+      try {
+        const liveData = await attendanceAPI.getLiveStats();
+        setLiveStats(liveData || []);
+      } catch (err) {
+        console.error('Polling error:', err);
+      }
+    }, 5000);
+
+    return () => clearInterval(interval);
   }, [navigate]);
 
   const loadDashboardData = async () => {
@@ -103,6 +117,10 @@ const InchargeDashboard = () => {
       }));
       setAttendanceFeed(formattedFeed);
 
+      // Load Live Hardware Stats (Aggregated Entry/Exit)
+      const liveData = await attendanceAPI.getLiveStats();
+      setLiveStats(liveData || []);
+
       const presentCount = formattedFeed.filter(s => s.status === 'Present').length;
       const absentCount = formattedFeed.filter(s => s.status === 'Absent').length;
       setPresentToday(presentCount);
@@ -115,10 +133,10 @@ const InchargeDashboard = () => {
       // Load complaints
       const complaintsData = await complaintsAPI.getAll();
       const formattedComplaints = complaintsData.rows.map(item => ({
-        id: item.id,
+        id: item._id,
         message: item.message,
         status: item.status.charAt(0).toUpperCase() + item.status.slice(1),
-        date: new Date(item.created_at).toLocaleDateString(),
+        date: new Date(item.createdAt).toLocaleDateString(),
         student_name: item.student_name
       }));
       setComplaints(formattedComplaints);
@@ -200,7 +218,17 @@ const InchargeDashboard = () => {
       return;
     }
     try {
-      await timetableAPI.create(ttDay, ttSubject, ttStartTime, ttEndTime, ttFacultyEmail, ttFacultyName);
+      // Automatic Scoping: Use incharge's department/class if available
+      await timetableAPI.create(
+        ttDay,
+        ttSubject,
+        ttStartTime,
+        ttEndTime,
+        ttFacultyEmail,
+        ttFacultyName,
+        user.department,
+        user.class_name
+      );
       alert('Timetable entry added');
       // Reload
       const ttData = await timetableAPI.getAll();
@@ -213,6 +241,22 @@ const InchargeDashboard = () => {
       setTtFacultyEmail('');
     } catch (err) {
       alert('Failed to add timetable: ' + err.message);
+    }
+  };
+
+  const handleSyncHardware = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    try {
+      setLoading(true);
+      const res = await hardwareAPI.uploadCSV(file);
+      alert(res.message || 'Hardware attendance synced successfully!');
+      await loadDashboardData();
+    } catch (err) {
+      alert(`Failed to sync hardware: ${err.message}`);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -239,7 +283,7 @@ const InchargeDashboard = () => {
       return;
     }
     try {
-      await usersAPI.create(newUserName, newUserEmail, newUserRole, newUserUID || null, newUserPassword || null);
+      await usersAPI.create(newUserName, newUserEmail, newUserRole, newUserUID || null, newUserRegNo || null, newUserPassword || null);
       const passwordMessage = newUserPassword
         ? `User created! Password set to: ${newUserPassword}`
         : newUserRole === 'student'
@@ -251,6 +295,7 @@ const InchargeDashboard = () => {
       setNewUserEmail('');
       setNewUserRole('student');
       setNewUserUID('');
+      setNewUserRegNo('');
       setNewUserPassword('');
       await loadDashboardData();
     } catch (err) {
@@ -261,7 +306,7 @@ const InchargeDashboard = () => {
   const handleUpdateUser = async () => {
     if (!editingUser) return;
     try {
-      await usersAPI.update(editingUser.id, newUserName, newUserEmail, newUserRole, newUserUID || null);
+      await usersAPI.update(editingUser._id, newUserName, newUserEmail, newUserRole, newUserUID || null, newUserRegNo || null);
       alert('User updated successfully!');
       setShowUserModal(false);
       setEditingUser(null);
@@ -269,6 +314,7 @@ const InchargeDashboard = () => {
       setNewUserEmail('');
       setNewUserRole('student');
       setNewUserUID('');
+      setNewUserRegNo('');
       await loadDashboardData();
     } catch (err) {
       alert(`Failed to update user: ${err.message}`);
@@ -302,6 +348,7 @@ const InchargeDashboard = () => {
     setNewUserEmail(user.email);
     setNewUserRole(user.role);
     setNewUserUID(user.uid || '');
+    setNewUserRegNo(user.id_number || '');
     setNewUserPassword('');
     setShowUserModal(true);
   };
@@ -312,6 +359,7 @@ const InchargeDashboard = () => {
     setNewUserEmail('');
     setNewUserRole('student');
     setNewUserUID('');
+    setNewUserRegNo('');
     setNewUserPassword('');
     setShowUserModal(true);
   };
@@ -346,28 +394,28 @@ const InchargeDashboard = () => {
 
       {/* HEADER */}
       <header className="bg-white rounded-xl shadow-md p-4 flex flex-col md:flex-row md:justify-between md:items-center gap-4">
-        <div className="flex items-center space-x-4">
-          <div className="bg-blue-600 rounded-full w-12 h-12 flex items-center justify-center text-white font-bold text-xl">
+        <div className="flex items-center space-x-4 w-full md:w-auto">
+          <div className="bg-blue-600 rounded-full w-12 h-12 flex-shrink-0 flex items-center justify-center text-white font-bold text-xl">
             VIT
           </div>
           <div>
-            <h1 className="text-xl md:text-2xl font-semibold">Vishnu Institute of Technology</h1>
+            <h1 className="text-xl md:text-2xl font-semibold leading-tight">Vishnu Institute of Technology</h1>
             <p className="text-sm text-blue-600">
               Logged in as: Incharge – {user?.name || 'Admin'}
             </p>
           </div>
         </div>
 
-        <div className="flex flex-col sm:flex-row gap-3">
+        <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
           <button
             onClick={() => navigate('/live-monitor')}
-            className="bg-indigo-600 text-white px-4 py-2 rounded-lg"
+            className="flex-1 sm:flex-none bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors"
           >
             Live Monitor
           </button>
           <button
             onClick={handleLogout}
-            className="bg-red-500 text-white px-4 py-2 rounded-lg"
+            className="flex-1 sm:flex-none bg-red-500 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-red-600 transition-colors"
           >
             Logout
           </button>
@@ -389,15 +437,15 @@ const InchargeDashboard = () => {
 
       {/* Student Management */}
       <Section title="Student Management">
-        <div className="flex justify-between items-center mb-4">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
           <input
             type="text"
             placeholder="Search students..."
-            className="border p-2 rounded-lg flex-1 max-w-md"
+            className="border p-2 rounded-lg w-full sm:max-w-md bg-white text-sm"
           />
           <button
             onClick={openCreateModal}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+            className="w-full sm:w-auto bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium"
           >
             + Add User
           </button>
@@ -407,6 +455,7 @@ const InchargeDashboard = () => {
             <thead className="bg-gray-100">
               <tr>
                 <th className="p-3 text-left">Name</th>
+                <th className="p-3 text-left">Reg No</th>
                 <th className="p-3 text-left">Email</th>
                 <th className="p-3 text-left">UID</th>
                 <th className="p-3 text-left">Actions</th>
@@ -414,15 +463,16 @@ const InchargeDashboard = () => {
             </thead>
             <tbody>
               {filteredUsers.map((u) => (
-                <tr key={u.id} className="border-b">
+                <tr key={u._id} className="border-b">
                   <td className="p-3">{u.name}</td>
+                  <td className="p-3 font-mono text-xs">{u.id_number || 'N/A'}</td>
                   <td className="p-3">{u.email}</td>
                   <td className="p-3">
                     {u.role === 'student' ? (
                       <input
                         type="text"
                         value={u.uid || ''}
-                        onChange={(e) => handleMapUID(u.id, e.target.value)}
+                        onChange={(e) => handleMapUID(u._id, e.target.value)}
                         placeholder="Enter UID"
                         className="border rounded px-2 py-1 text-sm w-32"
                       />
@@ -438,7 +488,7 @@ const InchargeDashboard = () => {
                       Edit
                     </button>
                     <button
-                      onClick={() => handleDeleteUser(u.id)}
+                      onClick={() => handleDeleteUser(u._id)}
                       className="bg-red-600 text-white px-3 py-1 rounded text-sm hover:bg-red-700"
                     >
                       Delete
@@ -491,13 +541,22 @@ const InchargeDashboard = () => {
                   />
                 )}
                 {newUserRole === 'student' && (
-                  <input
-                    type="text"
-                    placeholder="UID (for Raspberry Pi)"
-                    value={newUserUID}
-                    onChange={(e) => setNewUserUID(e.target.value)}
-                    className="w-full border p-2 rounded-lg"
-                  />
+                  <>
+                    <input
+                      type="text"
+                      placeholder="Registration Number (e.g. 24PA1A0250)"
+                      value={newUserRegNo}
+                      onChange={(e) => setNewUserRegNo(e.target.value.toUpperCase())}
+                      className="w-full border p-2 rounded-lg font-mono"
+                    />
+                    <input
+                      type="text"
+                      placeholder="UID (for Raspberry Pi)"
+                      value={newUserUID}
+                      onChange={(e) => setNewUserUID(e.target.value)}
+                      className="w-full border p-2 rounded-lg"
+                    />
+                  </>
                 )}
                 <div className="flex gap-2">
                   <button
@@ -542,7 +601,7 @@ const InchargeDashboard = () => {
                 </tr>
               ) : (
                 permissionRequests.filter(p => p.status === 'pending').map((req) => (
-                  <tr key={req.id} className="border-b">
+                  <tr key={req._id} className="border-b">
                     <td className="p-3">{req.student_name || 'N/A'}</td>
                     <td className="p-3">{req.reason || 'N/A'}</td>
                     <td className="p-3">
@@ -552,13 +611,13 @@ const InchargeDashboard = () => {
                     <td className={`p-3 ${getStatusColor(req.status)}`}>{req.status}</td>
                     <td className="p-3">
                       <button
-                        onClick={() => handleApprovePermission(req.id, 'approved')}
+                        onClick={() => handleApprovePermission(req._id, 'approved')}
                         className="bg-green-600 text-white px-3 py-1 rounded text-sm mr-2"
                       >
                         Approve
                       </button>
                       <button
-                        onClick={() => handleApprovePermission(req.id, 'rejected')}
+                        onClick={() => handleApprovePermission(req._id, 'rejected')}
                         className="bg-red-600 text-white px-3 py-1 rounded text-sm"
                       >
                         Reject
@@ -575,74 +634,106 @@ const InchargeDashboard = () => {
       {/* LIVE ATTENDANCE */}
       <Section
         title={
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-center">
-              Live Attendance Feed
-              <span className="relative flex h-3 w-3 ml-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
-              </span>
-              <span className="ml-2 text-xs font-bold text-green-600">LIVE</span>
+              <span className="truncate">Live attendance data</span>
+              <span className="ml-2 text-xs font-bold text-emerald-600 tracking-wider">(HARDWARE STREAM ACTIVE)</span>
             </div>
-            <button
-              onClick={() => {
-                const csv = [
-                  ['Student ID', 'Name', 'Email', 'Status', 'Timestamp'],
-                  ...filteredStudents.map(s => [s.id, s.name, s.email, s.status, s.timestamp])
-                ].map(row => row.join(',')).join('\n');
-                const blob = new Blob([csv], { type: 'text/csv' });
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `attendance-${new Date().toISOString().slice(0, 10)}.csv`;
-                a.click();
-              }}
-              className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700"
-            >
-              Export CSV
-            </button>
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => navigate('/live-monitor')}
+                className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-xs md:text-sm hover:bg-indigo-700 font-bold animate-pulse"
+              >
+                OPEN CONSOLE 📡
+              </button>
+              <label className="bg-blue-600 text-white px-4 py-2 rounded-lg text-xs md:text-sm hover:bg-blue-700 cursor-pointer flex items-center">
+                Sync Hardware
+                <input type="file" className="hidden" accept=".csv" onChange={handleSyncHardware} />
+              </label>
+              <button
+                onClick={() => {
+                  const csv = [
+                    ['Student ID', 'Name', 'Entry Time', 'Exit Time', 'Status'],
+                    ...liveStats.map(s => [s.name, s.name, s.entryTime, s.exitTime, s.lastStatus])
+                  ].map(row => row.join(',')).join('\n');
+                  const blob = new Blob([csv], { type: 'text/csv' });
+                  const url = window.URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = `live-attendance-${new Date().toISOString().slice(0, 10)}.csv`;
+                  a.click();
+                }}
+                className="bg-emerald-600 text-white px-4 py-2 rounded-lg text-xs md:text-sm hover:bg-emerald-700 font-medium"
+              >
+                Export CSV
+              </button>
+            </div>
           </div>
         }
       >
-        <input className="border p-2 rounded-lg mb-4 w-full md:w-1/3" placeholder="Search student..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
+        <input className="border p-2 rounded-lg mb-4 w-full md:w-1/3 bg-white text-sm" placeholder="Search student..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
 
         <div className="overflow-x-auto">
-          <table className="min-w-[900px] w-full">
-            <thead className="bg-gray-100">
+          <table className="min-w-[900px] w-full text-left">
+            <thead className="bg-gray-50 border-b">
               <tr>
-                <th className="p-3">Student</th>
-                <th className="p-3">Status</th>
-                <th className="p-3">Permission Time</th>
-                <th className="p-3">Parent Message</th>
-                <th className="p-3">Action</th>
+                <th className="px-6 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Student Member</th>
+                <th className="px-6 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center">ID / RegNo</th>
+                <th className="px-6 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center">Status</th>
+                <th className="px-6 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center">Entry Time (Login)</th>
+                <th className="px-6 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center">Exit Time</th>
+                <th className="px-6 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-right">Action</th>
               </tr>
             </thead>
-            <tbody>
-              {filteredStudents.length === 0 && (
+            <tbody className="divide-y">
+              {liveStats.length === 0 && (
                 <tr>
-                  <td colSpan="5" className="text-center p-6 text-gray-500">
-                    No live attendance data
+                  <td colSpan="6" className="text-center p-12 text-gray-400 italic">
+                    <div className="flex flex-col items-center gap-2">
+                      <div className="w-8 h-8 border-2 border-dashed border-gray-300 rounded-full animate-spin"></div>
+                      Waiting for hardware scans...
+                    </div>
                   </td>
                 </tr>
               )}
 
-              {filteredStudents.map((s, i) => (
-                <tr key={i} className="border-b">
-                  <td className="p-3">
-                    <div className="font-medium">{s.name}</div>
-                    <div className="text-xs text-gray-500">{s.id}</div>
+              {liveStats.filter(s => s.name.toLowerCase().includes(searchQuery.toLowerCase()) || (s.regNo && s.regNo.toLowerCase().includes(searchQuery.toLowerCase()))).map((s, i) => (
+                <tr key={i} className="hover:bg-gray-50 transition-colors">
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-xs capitalize">
+                        {s.name.charAt(0)}
+                      </div>
+                      <div className="font-semibold text-gray-800">{s.name}</div>
+                    </div>
                   </td>
-                  <td className={`p-3 ${getStatusColor(s.status)}`}>{s.status}</td>
-                  <td className="p-3">{s.timestamp}</td>
-                  <td className="p-3">
-                    {s.parentNotified ? "✅ Sent" : "⏳ Not Sent"}
+                  <td className="px-6 py-4 text-center">
+                    <span className="text-xs font-mono text-gray-500">{s.regNo}</span>
                   </td>
-                  <td className="p-3">
+                  <td className="px-6 py-4 text-center">
+                    <span className={`px-2.5 py-1 rounded-full text-[10px] font-black tracking-widest uppercase border ${s.lastStatus === 'IN'
+                      ? 'bg-emerald-100 text-emerald-700 border-emerald-200'
+                      : 'bg-red-100 text-red-700 border-red-200'
+                      }`}>
+                      {s.lastStatus}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 text-center">
+                    <span className="text-xs font-mono bg-gray-100 px-2 py-1 rounded">
+                      {s.entryTime}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 text-center">
+                    <span className="text-xs font-mono bg-amber-50 text-amber-700 px-2 py-1 rounded border border-amber-100">
+                      {s.exitTime === s.entryTime ? '--:--' : s.exitTime}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 text-right">
                     <button
-                      onClick={() => markAbsent(s)}
-                      className="bg-red-500 text-white px-3 py-1 rounded text-sm"
+                      onClick={() => markAbsent({ id: s.name, name: s.name })}
+                      className="text-xs font-bold text-red-600 hover:text-red-800 transition-colors"
                     >
-                      {s.status === 'Absent' ? 'Already Absent' : 'Mark Absent'}
+                      Mark Absent
                     </button>
                   </td>
                 </tr>
@@ -720,7 +811,7 @@ const InchargeDashboard = () => {
             </thead>
             <tbody>
               {timetable.map((t) => (
-                <tr key={t.id} className="border-b hover:bg-gray-50">
+                <tr key={t._id} className="border-b hover:bg-gray-50">
                   <td className="p-3 font-medium">{t.day_of_week}</td>
                   <td className="p-3">{formatTo12Hour(t.start_time)} - {formatTo12Hour(t.end_time)}</td>
                   <td className="p-3 font-semibold text-blue-600">{t.subject}</td>
@@ -730,7 +821,7 @@ const InchargeDashboard = () => {
                   </td>
                   <td className="p-3">
                     <button
-                      onClick={() => handleDeleteTimetable(t.id)}
+                      onClick={() => handleDeleteTimetable(t._id)}
                       className="text-red-600 hover:text-red-800"
                     >
                       Delete
