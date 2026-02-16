@@ -1,7 +1,9 @@
 import axios from 'axios';
 
+import { API_BASE_URL } from '../utils/constants';
+
 const api = axios.create({
-  baseURL: `http://${window.location.hostname}:4001/api`,
+  baseURL: API_BASE_URL,
 });
 
 // Add token to requests
